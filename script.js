@@ -1,4 +1,4 @@
-import * as TH from './build/three.module.js'
+import * as TH from './three.module.js'
 import { createUploadPanel } from './UPLOAD.js'
 import { buildPlush } from './model.js'
 
