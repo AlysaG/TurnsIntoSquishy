@@ -112,6 +112,11 @@ const matBall = new TH.MeshStandardMaterial({
     metalness: 0.0
 });
 
+// Squeeze strength (fingers are big and imprecise, so it is gentler than a mouse would need)
+const PULL_SCALE = 0.7;      // 1 = surface follows the finger fully, lower = softer pull / push
+const MAX_PULL = 0.95;       // longest stretch / dent, as a fraction of the object's radius
+const SQUASH_DEPTH = 0.4;    // double-tap + hold: how much the whole object flattens (0.55 was the old value)
+
 const squishUniforms = {
     uGrab:   { value: new TH.Vector3() },   // grab point (ball local space)
     uOffset: { value: new TH.Vector3() },   // how far the grab point is moved
@@ -155,7 +160,7 @@ function installSquish(shader) {
 
         // Whole-ball squash along uAxis, volume preserving (negative = stretch)
         vec3 squish(vec3 p0) {
-            float k = 1.0 - 0.55 * uSquash;
+            float k = 1.0 - ${SQUASH_DEPTH.toFixed(3)} * uSquash;
             float a = dot(p0, uAxis);
             vec3 perp = p0 - uAxis * a;
             vec3 squashed = perp * inversesqrt(k) + uAxis * (a * k);
@@ -432,9 +437,10 @@ renderer.domElement.addEventListener('pointermove', (e) => {
     if (raycaster.ray.intersectPlane(dragPlane, hitOnPlane)) {
         // world drag -> ball local space (ball may be rotated)
         targetOffset.copy(hitOnPlane).sub(grabWorld)
-            .applyQuaternion(ball.quaternion.clone().invert());
+            .applyQuaternion(ball.quaternion.clone().invert())
+            .multiplyScalar(PULL_SCALE);
         // Limit how far it can be stretched/squeezed
-        const maxLen = objectRadius * 1.3;
+        const maxLen = objectRadius * MAX_PULL;
         if (targetOffset.length() > maxLen) targetOffset.setLength(maxLen);
     }
 });
@@ -494,7 +500,7 @@ function animate() {
     if (!squeezing && Math.abs(sq) < 1e-3 && Math.abs(sqVel) < 1e-3) { sq = 0; sqVel = 0; }
     squishUniforms.uSquash.value = sq;
     squishUniforms.uAxis.value.set(0, 1, 0).applyQuaternion(ball.quaternion.clone().invert());
-    ball.position.y = restY(1 - 0.55 * sq); // keep the bottom on the floor
+    ball.position.y = restY(1 - SQUASH_DEPTH * sq); // keep the bottom on the floor
 
     // Smooth rotation: ease toward where your finger is, then glide a little after release
     const f = 1 - Math.exp(-SMOOTHING * dt);
