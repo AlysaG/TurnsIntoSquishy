@@ -1,9 +1,16 @@
 // Upload panel: pick a FRONT and a BACK picture (PNG or JPEG).
 // Usage: createUploadPanel({ onSubmit: ({ front, back }) => { ... } })
 // front / back = { file, url, image }  (image is a loaded HTMLImageElement)
+//
+// Phones / small screens get a COMPACT panel: it starts as a small "Make your 3D object" pill in the
+// top-left corner, opens into a slim bar (pictures on the left, buttons on the right) and tucks itself
+// away again after the model is built, so the object is never covered.
 
 const ACCEPT = ['image/png', 'image/jpeg'];
 const MAX_MB = 10;
+
+const COMPACT = typeof window !== 'undefined' &&
+    window.matchMedia('(max-width: 700px), (pointer: coarse)').matches;
 
 export function createUploadPanel({ onSubmit, onReset } = {}) {
     const state = { front: null, back: null };
@@ -12,18 +19,22 @@ export function createUploadPanel({ onSubmit, onReset } = {}) {
     const panel = document.createElement('div');
     Object.assign(panel.style, {
         position: 'fixed',
-        top: 'calc(12px + env(safe-area-inset-top, 0px))',
-        left: 'calc(12px + env(safe-area-inset-left, 0px))',
-        width: 'min(236px, calc(100vw - 24px))',
-        padding: '12px',
+        top: `calc(${COMPACT ? 8 : 12}px + env(safe-area-inset-top, 0px))`,
+        left: `calc(${COMPACT ? 8 : 12}px + env(safe-area-inset-left, 0px))`,
+        width: COMPACT ? 'auto' : 'min(236px, calc(100vw - 24px))',
+        maxWidth: 'calc(100vw - 16px)',
+        padding: COMPACT ? '6px 8px' : '12px',
         boxSizing: 'border-box',
-        background: 'rgba(255,255,255,0.95)',
-        borderRadius: '14px',
+        background: COMPACT ? 'rgba(255,255,255,0.88)' : 'rgba(255,255,255,0.95)',
+        backdropFilter: 'blur(6px)',
+        webkitBackdropFilter: 'blur(6px)',
+        borderRadius: COMPACT ? '12px' : '14px',
         boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
-        font: '13px/1.4 system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
+        font: `${COMPACT ? 12 : 13}px/1.4 system-ui, -apple-system, Segoe UI, Roboto, sans-serif`,
         color: '#222',
         zIndex: '10',
-        userSelect: 'none'
+        userSelect: 'none',
+        touchAction: 'manipulation'
     });
 
     // header with collapse button
@@ -32,7 +43,9 @@ export function createUploadPanel({ onSubmit, onReset } = {}) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginBottom: '10px'
+        gap: '10px',
+        marginBottom: COMPACT ? '0' : '10px',
+        cursor: COMPACT ? 'pointer' : 'default'
     });
     const title = document.createElement('strong');
     title.textContent = 'Make your 3D object';
@@ -43,11 +56,12 @@ export function createUploadPanel({ onSubmit, onReset } = {}) {
         border: 'none',
         background: '#eee',
         borderRadius: '6px',
-        width: '34px',
-        height: '34px',
+        width: COMPACT ? '30px' : '34px',
+        height: COMPACT ? '30px' : '34px',
         cursor: 'pointer',
         fontSize: '18px',
-        lineHeight: '1'
+        lineHeight: '1',
+        flex: 'none'
     });
     header.append(title, collapse);
 
@@ -55,10 +69,14 @@ export function createUploadPanel({ onSubmit, onReset } = {}) {
 
     // two slots
     const slots = document.createElement('div');
-    Object.assign(slots.style, { display: 'flex', gap: '10px' });
+    Object.assign(slots.style, { display: 'flex', gap: COMPACT ? '8px' : '10px', flex: 'none' });
 
     const error = document.createElement('div');
-    Object.assign(error.style, { color: '#c62828', minHeight: '18px', margin: '8px 0 2px' });
+    Object.assign(error.style, {
+        color: '#c62828',
+        minHeight: COMPACT ? '0' : '18px',
+        margin: COMPACT ? '4px 0 0' : '8px 0 2px'
+    });
 
     const hint = document.createElement('div');
     hint.textContent = 'PNG or JPEG. Clear line art works best.';
@@ -69,26 +87,28 @@ export function createUploadPanel({ onSubmit, onReset } = {}) {
     next.disabled = true;
     Object.assign(next.style, {
         width: '100%',
-        padding: '9px',
+        padding: COMPACT ? '8px' : '9px',
         border: 'none',
         borderRadius: '8px',
         fontWeight: '600',
-        fontSize: '14px'
+        fontSize: COMPACT ? '13px' : '14px'
     });
 
     // Refresh button: clears the pictures and brings the ball back
     const refresh = document.createElement('button');
-    refresh.innerHTML = '<span style="font-size:16px;margin-right:6px">↻</span>Delete';
+    refresh.innerHTML = COMPACT
+        ? '<span style="font-size:15px;margin-right:5px">↻</span>Back to ball'
+        : '<span style="font-size:16px;margin-right:6px">↻</span>Refresh (back to ball)';
     Object.assign(refresh.style, {
         width: '100%',
-        marginTop: '8px',
-        padding: '9px',
+        marginTop: COMPACT ? '6px' : '8px',
+        padding: COMPACT ? '7px' : '9px',
         border: '1.5px solid #1e6fff',
         borderRadius: '8px',
         background: '#fff',
         color: '#1e6fff',
         fontWeight: '600',
-        fontSize: '14px',
+        fontSize: COMPACT ? '13px' : '14px',
         cursor: 'pointer'
     });
     refresh.addEventListener('mouseenter', () => { refresh.style.background = '#e8f0ff'; });
@@ -109,7 +129,9 @@ export function createUploadPanel({ onSubmit, onReset } = {}) {
     // ---------- one slot (front or back) ----------
     function makeSlot(key, label) {
         const wrap = document.createElement('div');
-        Object.assign(wrap.style, { flex: '1', textAlign: 'center' });
+        Object.assign(wrap.style, COMPACT
+            ? { flex: 'none', width: '64px', textAlign: 'center' }
+            : { flex: '1', textAlign: 'center' });
 
         const box = document.createElement('div');
         box.tabIndex = 0;
@@ -131,31 +153,38 @@ export function createUploadPanel({ onSubmit, onReset } = {}) {
         });
 
         const plus = document.createElement('div');
-        plus.innerHTML = '<div style="font-size:26px;line-height:1">+</div><div style="font-size:11px">Add</div>';
+        plus.innerHTML = COMPACT
+            ? '<div style="font-size:22px;line-height:1">+</div><div style="font-size:10px">Add</div>'
+            : '<div style="font-size:26px;line-height:1">+</div><div style="font-size:11px">Add</div>';
         box.appendChild(plus);
 
+        const removeSize = COMPACT ? '26px' : '30px';
         const remove = document.createElement('button');
         remove.textContent = '✕';
         remove.title = 'Remove';
         Object.assign(remove.style, {
             position: 'absolute',
-            top: '4px',
-            right: '4px',
-            width: '30px',
-            height: '30px',
+            top: '2px',
+            right: '2px',
+            width: removeSize,
+            height: removeSize,
             border: 'none',
             borderRadius: '50%',
             background: 'rgba(0,0,0,0.6)',
             color: '#fff',
             cursor: 'pointer',
             display: 'none',
-            fontSize: '14px'
+            fontSize: COMPACT ? '12px' : '14px'
         });
         box.appendChild(remove);
 
         const caption = document.createElement('div');
         caption.textContent = label;
-        Object.assign(caption.style, { marginTop: '5px', fontWeight: '600' });
+        Object.assign(caption.style, {
+            marginTop: COMPACT ? '2px' : '5px',
+            fontWeight: '600',
+            fontSize: COMPACT ? '11px' : 'inherit'
+        });
 
         const input = document.createElement('input');
         input.type = 'file';
@@ -251,19 +280,51 @@ export function createUploadPanel({ onSubmit, onReset } = {}) {
         if (onSubmit) onSubmit({ front: state.front, back: state.back });
     });
 
+    // ---------- open / close ----------
     function setCollapsed(c) {
         body.style.display = c ? 'none' : 'block';
         collapse.textContent = c ? '+' : '–';
         collapse.title = c ? 'Expand' : 'Collapse';
+        if (COMPACT) {
+            // closed = small pill, open = slim bar
+            panel.style.width = c ? 'auto' : 'min(350px, calc(100vw - 16px))';
+            header.style.marginBottom = c ? '0' : '6px';
+        }
     }
     collapse.addEventListener('click', () => {
         setCollapsed(body.style.display !== 'none');
     });
+    if (COMPACT) {
+        // on phones the whole title bar is a big tap target
+        header.addEventListener('click', (e) => {
+            if (e.target === collapse) return;
+            setCollapsed(body.style.display !== 'none');
+        });
+    }
 
-    body.append(slots, error, next, refresh, hint);
+    // ---------- layout ----------
+    if (COMPACT) {
+        // pictures on the left, buttons on the right
+        const row = document.createElement('div');
+        Object.assign(row.style, { display: 'flex', gap: '10px', alignItems: 'stretch' });
+        const controls = document.createElement('div');
+        Object.assign(controls.style, {
+            flex: '1',
+            minWidth: '0',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center'
+        });
+        controls.append(next, refresh);
+        row.append(slots, controls);
+        body.append(row, error);
+    } else {
+        body.append(slots, error, next, refresh, hint);
+    }
     panel.append(header, body);
     document.body.appendChild(panel);
     refreshNext();
+    if (COMPACT) setCollapsed(true);   // start as a small pill so nothing covers the object
 
     function setBusy(busy) {
         refreshNext();
@@ -273,12 +334,10 @@ export function createUploadPanel({ onSubmit, onReset } = {}) {
             next.style.cursor = 'wait';
             showError('');
         } else {
-            next.textContent = 'Finish';
+            next.textContent = 'Continue';
             // on phones, tuck the panel away once the model is ready so it doesn't cover it
             // (stays open if there was an error, so you can read the message)
-            if (!error.textContent && window.matchMedia('(max-width: 700px), (pointer: coarse)').matches) {
-                setCollapsed(true);
-            }
+            if (!error.textContent && COMPACT) setCollapsed(true);
         }
     }
 
