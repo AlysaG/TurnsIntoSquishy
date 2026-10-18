@@ -9,7 +9,7 @@
 // Usage: const { mesh, radius, samples } = buildPlush(front, back)
 //        front / back = { image: HTMLImageElement, ... } from upload.js
 
-import * as TH from './build/three.module.js'
+import * as TH from './three.module.js'
 
 const TARGET_SIZE = 6.4;   // longest side of the model in world units (the ball is 6 wide)
 const ANALYSIS_MAX = 256;  // pictures are analysed at this size (px)
